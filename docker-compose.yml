@@ -1,0 +1,50 @@
+# PROJECT_ROOT/docker-compose.yml
+
+version: '3.8'
+
+services:
+  #######################
+  # Node.js App Service #
+  #######################
+  node_app:
+    build:
+      context: ./node_app
+      dockerfile: Dockerfile
+    ports:
+      - "45316:3003" # Node.js 앱 컨테이너 포트: 3003
+    volumes:
+      - ./node_app:/usr/src/app
+      - /usr/src/app/node_modules
+    environment:
+      - NODE_ENV=development
+      - CPP_API_URL=http://cpp_api_service:3004 # C++ 서비스 내부 포트: 3004
+    depends_on:
+      cpp_api_service:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ##########################
+  # C++ OpenCV API Service #
+  ##########################
+  cpp_api_service:
+    image: raid:1.0 # 로컬에 있는 'raid:1.0' 이미지를 사용하도록 지정
+    pull_policy: never # 이미지를 pull 하려고 시도하지 않음. 로컬에 없으면 서비스 시작 실패.
+    ports:
+      # 호스트의 45317 포트를 컨테이너의 3004 포트로 연결
+      # 'raid:1.0' 이미지는 내부적으로 3004 포트에서 API 서비스를 실행해야 함
+      - "45317:3004"
+    # volumes:
+      # 'raid:1.0' 이미지가 외부 볼륨(예: 설정 파일, 데이터 저장 폴더 등)을 사용한다면 여기에 정의
+      # 예: - ./cpp_service_config_files:/etc/raid_app/config
+    environment:
+      - TZ=Asia/Seoul # 컨테이너 시간대 설정
+      # 'raid:1.0' 이미지가 실행될 때 필요한 추가 환경 변수가 있다면 여기에 정의
+      # 예: - LOG_LEVEL=INFO
+    healthcheck:
+      # 'raid:1.0' 이미지 내부의 애플리케이션이 3004 포트에서 /health 엔드포인트를 제공해야 함
+      test: ["CMD", "curl", "-f", "http://localhost:3004/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s # 이미 만들어진 이미지의 애플리케이션 시작 시간 확보
+    restart: unless-stopped
