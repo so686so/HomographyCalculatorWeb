@@ -98,8 +98,8 @@
 			<div id="pageContainer" class="page-container">
 				<div id="viewCoordInput" class="page-view current-view">
 					<div class="main-content">
-						<h1>이미지 좌표 및 Ground Truth 입력</h1>
-						<p>
+						<h1 style="text-align: center;">이미지 좌표 및 지면 실측 좌표 입력</h1>
+						<p style="text-align: center;">
 							<em id="imageSelectionPrompt"
 								>좌측 상단의 '폴더 선택' 버튼으로 작업할 이미지
 								폴더를 지정해주세요.</em
@@ -159,7 +159,7 @@
 					style="display: none"
 				>
 					<div class="main-content">
-						<h1>캘리브레이션 결과 JSON 변환</h1>
+						<h1 style="text-align: center;">캘리브레이션 결과 JSON 변환</h1>
 						<div class="conversion-tool-container">
 							<div class="conversion-input-area">
 								<h2>입력 (Plain Text)</h2>
@@ -198,33 +198,58 @@
 					style="display: none"
 				>
 					<div class="main-content">
-						<h1>실측자료 이용 Homography 연산</h1>
+						<h1 style="text-align: center;">실측자료 이용 Homography 연산</h1>
 						<div id="homographyStatusSection">
 							<h2>데이터 및 서버 상태 확인</h2>
-							<p>
-								전체 주석 데이터 (Global Annotations):
-								<span id="statusGlobalAnnotations"
+							<div class="status-line">
+								<span class="status-label"
+									>전체 주석 데이터:</span
+								>
+								<span
+									class="status-value"
+									id="statusGlobalAnnotations"
 									>확인 중...</span
 								>
-							</p>
-							<p>
-								캘리브레이션 결과 (Calibration Result):
-								<span id="statusCalibrationResult"
+								<button
+									id="viewGlobalAnnotationsJsonBtn"
+									class="view-json-btn"
+									disabled
+								>
+									JSON 보기
+								</button>
+							</div>
+							<div class="status-line">
+								<span class="status-label"
+									>캘리브레이션 결과:</span
+								>
+								<span
+									class="status-value"
+									id="statusCalibrationResult"
 									>확인 중...</span
 								>
-							</p>
-							<p>
-								C++ API 서버 상태:
-								<span id="statusCppApiServer">확인 중...</span>
-							</p>
-							<button id="refreshHomographyStatusBtn">
-								상태 새로고침
-							</button>
+								<button
+									id="viewCalibrationResultJsonBtn"
+									class="view-json-btn"
+									disabled
+								>
+									JSON 보기
+								</button>
+							</div>
+							<div class="status-line">
+								<span class="status-label"
+									>C++ API 서버 상태:</span
+								>
+								<span
+									class="status-value"
+									id="statusCppApiServer"
+									>확인 중...</span
+								>
+								<button id="refreshHomographyStatusBtn">
+									새로고침
+								</button>
+							</div>
 						</div>
-						<div
-							id="homographyActionSection"
-							style="margin-top: 20px"
-						>
+						<div id="homographyActionContainer">
 							<button id="requestHomographyBtn" disabled>
 								Homography 연산 요청
 							</button>
@@ -233,7 +258,13 @@
 							id="homographyResultSection"
 							style="margin-top: 20px"
 						>
-							<h2>Homography 연산 결과</h2>
+							<h2>
+								Homography 연산 요청 결과
+								<span
+									id="homographyCalcStatusIcon"
+									class="status-icon"
+								></span>
+							</h2>
 							<pre id="homographyResultText">결과 대기 중...</pre>
 						</div>
 					</div>
@@ -269,6 +300,16 @@
 					<button id="popupSubmitBtn">저장</button
 					><button id="popupCancelBtn" type="button">취소</button>
 				</div>
+			</div>
+		</div>
+
+		<div id="jsonDisplayPopup" class="popup-dialog" style="display: none">
+			<div class="popup-content json-popup-content">
+				<span class="popup-close-btn" id="closeJsonDisplayPopupBtn"
+					>&times;</span
+				>
+				<h3 id="jsonDisplayPopupTitle">JSON 데이터 보기</h3>
+				<pre id="jsonDisplayPopupContent"></pre>
 			</div>
 		</div>
 

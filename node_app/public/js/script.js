@@ -95,6 +95,27 @@ document.addEventListener("DOMContentLoaded", () => {
 	const homographyResultTextElement = document.getElementById(
 		"homographyResultText"
 	);
+	const viewGlobalAnnotationsJsonBtnElement = document.getElementById(
+		"viewGlobalAnnotationsJsonBtn"
+	);
+	const viewCalibrationResultJsonBtnElement = document.getElementById(
+		"viewCalibrationResultJsonBtn"
+	);
+	const homographyCalcStatusIconElement = document.getElementById(
+		"homographyCalcStatusIcon"
+	);
+
+	// JSON 보기 팝업 요소
+	const jsonDisplayPopupElement = document.getElementById("jsonDisplayPopup");
+	const closeJsonDisplayPopupBtnElement = document.getElementById(
+		"closeJsonDisplayPopupBtn"
+	);
+	const jsonDisplayPopupTitleElement = document.getElementById(
+		"jsonDisplayPopupTitle"
+	);
+	const jsonDisplayPopupContentElement = document.getElementById(
+		"jsonDisplayPopupContent"
+	);
 
 	// 플로팅 전체 캐시 초기화 버튼 요소
 	const floatingResetAllCacheBtnElement = document.getElementById(
@@ -146,6 +167,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			if (homographyResultTextElement) {
 				homographyResultTextElement.textContent = "결과 대기 중...";
 			}
+			updateHomographyCalcStatusIcon("waiting");
 			checkHomographyPrerequisites();
 		}
 	}
@@ -180,6 +202,14 @@ document.addEventListener("DOMContentLoaded", () => {
 					)
 				) {
 					closeCrosshairActionMenu();
+				}
+				// JSON 팝업 외부 클릭 시 닫기
+				if (
+					jsonDisplayPopupElement &&
+					jsonDisplayPopupElement.style.display === "flex" &&
+					event.target === jsonDisplayPopupElement
+				) {
+					closeJsonPopup();
 				}
 			},
 			true
@@ -299,6 +329,11 @@ document.addEventListener("DOMContentLoaded", () => {
 		currentSelectedFileObject = null;
 		closePopup();
 		closeCrosshairActionMenu();
+		if (
+			jsonDisplayPopupElement &&
+			jsonDisplayPopupElement.style.display === "flex"
+		)
+			closeJsonPopup();
 		crosshairTooltipElement.style.display = "none";
 		crosshairTooltipElement.classList.remove("visible");
 		updateStatsHeader();
@@ -337,6 +372,12 @@ document.addEventListener("DOMContentLoaded", () => {
 		imageSelectionPromptElement.style.display = "none";
 		resetUIForNewImageSelection();
 		closeCrosshairActionMenu();
+		if (
+			jsonDisplayPopupElement &&
+			jsonDisplayPopupElement.style.display === "flex"
+		)
+			closeJsonPopup();
+
 		try {
 			console.log(
 				`[selectImage] Fetching defined points for: ${currentImageIdentifier}`
@@ -1244,14 +1285,12 @@ document.addEventListener("DOMContentLoaded", () => {
 					throw new Error(errorData.message);
 				}
 
-				// 클라이언트 측 데이터 초기화
 				globalJsonData = { data: [] };
 				clientCalibrationResult = null;
-				currentImageDefinedPoints = []; // 현재 이미지의 주석도 초기화
-				currentImageAnnotations = []; // 현재 이미지의 캔버스 주석도 초기화
-				allCrosshairHotspots = []; // 캔버스 핫스팟도 초기화
+				currentImageDefinedPoints = [];
+				currentImageAnnotations = [];
+				allCrosshairHotspots = [];
 
-				// UI 업데이트
 				if (jsonResultGlobalElement)
 					jsonResultGlobalElement.textContent = JSON.stringify(
 						globalJsonData,
@@ -1261,21 +1300,19 @@ document.addEventListener("DOMContentLoaded", () => {
 				if (calibrationOutputJsonElement)
 					calibrationOutputJsonElement.value = "";
 				if (jsonResultCurrentElement)
-					jsonResultCurrentElement.textContent = "{}"; // 현재 포인트 JSON도 초기화
+					jsonResultCurrentElement.textContent = "{}";
 				if (definedPointsListElement)
 					definedPointsListElement.innerHTML =
-						"<li>이 이미지에 정의된 주석이 없습니다.</li>"; // 주석 목록 UI 초기화
+						"<li>이 이미지에 정의된 주석이 없습니다.</li>";
 				if (ctx)
 					ctx.clearRect(
 						0,
 						0,
 						crosshairCanvasElement.width,
 						crosshairCanvasElement.height
-					); // 캔버스 클리어
+					);
 
-				// 현재 이미지 관련 UI 초기화 (선택된 이미지가 있었다면)
 				if (currentImageIdentifier) {
-					// resetUIForNewImageSelection(); // 이 함수는 현재 이미지 선택 시 호출되므로, 여기서는 더 포괄적인 초기화
 					const listItem = document.querySelector(
 						`#imageList li[data-image-name="${currentImageIdentifier}"]`
 					);
@@ -1285,7 +1322,6 @@ document.addEventListener("DOMContentLoaded", () => {
 							"active-selection"
 						);
 					}
-					// 만약 폴더 선택 UI를 유지하고 싶다면, clearMainContentForNewFolder() 대신 아래처럼 부분 초기화
 					uploadedImageElement.style.display = "none";
 					uploadedImageElement.src = "#";
 					if (infoSelectedImageFileElement)
@@ -1294,10 +1330,9 @@ document.addEventListener("DOMContentLoaded", () => {
 						infoResolutionElement.textContent = "N/A";
 					markCompleteBtnElement.style.display = "none";
 				} else {
-					clearMainContentForNewFolder(); // 선택된 이미지가 없으면 전체 초기화
+					clearMainContentForNewFolder();
 				}
 
-				// 이미지 목록의 completed 클래스 모두 제거
 				document
 					.querySelectorAll("#imageList li.completed")
 					.forEach((li) => li.classList.remove("completed"));
@@ -1307,11 +1342,11 @@ document.addEventListener("DOMContentLoaded", () => {
 						.getElementById("viewHomographyCalc")
 						.classList.contains("current-view")
 				) {
+					if (homographyResultTextElement)
+						homographyResultTextElement.textContent =
+							"결과 대기 중...";
+					updateHomographyCalcStatusIcon("waiting");
 					checkHomographyPrerequisites();
-				}
-
-				if (homographyResultTextElement) {
-					homographyResultTextElement.textContent = "결과 대기 중...";
 				}
 
 				updateStatsHeader();
@@ -1593,6 +1628,15 @@ document.addEventListener("DOMContentLoaded", () => {
 	}
 
 	// --- Homography 연산 페이지 로직 ---
+	function updateHomographyCalcStatusIcon(type = "waiting") {
+		if (homographyCalcStatusIconElement) {
+			homographyCalcStatusIconElement.className = "status-icon"; // 기본 클래스만 남김
+			homographyCalcStatusIconElement.classList.add(type); // 현재 상태 클래스 추가
+			// 아이콘은 CSS의 ::before 가상 요소를 통해 content로 설정되므로, textContent는 비워둡니다.
+			homographyCalcStatusIconElement.textContent = "";
+		}
+	}
+
 	async function checkHomographyPrerequisites() {
 		if (
 			!statusGlobalAnnotationsElement ||
@@ -1606,6 +1650,10 @@ document.addEventListener("DOMContentLoaded", () => {
 		statusCalibrationResultElement.textContent = "확인 중...";
 		statusCppApiServerElement.textContent = "확인 중...";
 		requestHomographyBtnElement.disabled = true;
+		if (viewGlobalAnnotationsJsonBtnElement)
+			viewGlobalAnnotationsJsonBtnElement.disabled = true;
+		if (viewCalibrationResultJsonBtnElement)
+			viewCalibrationResultJsonBtnElement.disabled = true;
 
 		try {
 			const response = await fetch("/api/homography/status");
@@ -1615,27 +1663,28 @@ document.addEventListener("DOMContentLoaded", () => {
 			const status = await response.json();
 
 			statusGlobalAnnotationsElement.textContent =
-				status.hasGlobalAnnotations
-					? "데이터 있음 (서버 캐시)"
-					: "데이터 없음 (서버 캐시)";
+				status.hasGlobalAnnotations ? "데이터 있음" : "데이터 없음";
 			statusGlobalAnnotationsElement.style.color =
 				status.hasGlobalAnnotations ? "green" : "red";
+			if (viewGlobalAnnotationsJsonBtnElement)
+				viewGlobalAnnotationsJsonBtnElement.disabled =
+					!status.hasGlobalAnnotations;
 
 			statusCalibrationResultElement.textContent =
-				status.hasCalibrationResult
-					? "데이터 있음 (서버 캐시)"
-					: "데이터 없음 (서버 캐시)";
+				status.hasCalibrationResult ? "데이터 있음" : "데이터 없음";
 			statusCalibrationResultElement.style.color =
 				status.hasCalibrationResult ? "green" : "red";
+			if (viewCalibrationResultJsonBtnElement)
+				viewCalibrationResultJsonBtnElement.disabled =
+					!status.hasCalibrationResult;
 
 			if (!status.isCppApiConfigured) {
-				statusCppApiServerElement.textContent =
-					"C++ API 구성 안됨 (환경 변수 확인 필요)";
+				statusCppApiServerElement.textContent = "C++ API 구성 안됨";
 				statusCppApiServerElement.style.color = "orange";
 			} else {
 				statusCppApiServerElement.textContent = status.isCppApiOnline
 					? "온라인"
-					: "오프라인 또는 응답 없음";
+					: "오프라인";
 				statusCppApiServerElement.style.color = status.isCppApiOnline
 					? "green"
 					: "red";
@@ -1659,8 +1708,42 @@ document.addEventListener("DOMContentLoaded", () => {
 			statusGlobalAnnotationsElement.style.color = "red";
 			statusCalibrationResultElement.style.color = "red";
 			statusCppApiServerElement.style.color = "red";
+			if (viewGlobalAnnotationsJsonBtnElement)
+				viewGlobalAnnotationsJsonBtnElement.disabled = true;
+			if (viewCalibrationResultJsonBtnElement)
+				viewCalibrationResultJsonBtnElement.disabled = true;
 			alert(`상태 확인 중 오류 발생: ${error.message}`);
 		}
+	}
+
+	// JSON 보기 팝업 열기 함수
+	function showJsonPopup(title, jsonData) {
+		if (jsonDisplayPopupTitleElement)
+			jsonDisplayPopupTitleElement.textContent = title;
+		if (jsonDisplayPopupContentElement)
+			jsonDisplayPopupContentElement.textContent = JSON.stringify(
+				jsonData,
+				null,
+				2
+			);
+		if (jsonDisplayPopupElement)
+			jsonDisplayPopupElement.style.display = "flex";
+	}
+
+	// JSON 보기 팝업 닫기 함수
+	function closeJsonPopup() {
+		if (jsonDisplayPopupElement)
+			jsonDisplayPopupElement.style.display = "none";
+		if (jsonDisplayPopupContentElement)
+			jsonDisplayPopupContentElement.textContent = "";
+	}
+
+	// JSON 보기 팝업 닫기 버튼 이벤트 리스너
+	if (closeJsonDisplayPopupBtnElement) {
+		closeJsonDisplayPopupBtnElement.addEventListener(
+			"click",
+			closeJsonPopup
+		);
 	}
 
 	if (refreshHomographyStatusBtnElement) {
@@ -1668,13 +1751,49 @@ document.addEventListener("DOMContentLoaded", () => {
 			if (homographyResultTextElement) {
 				homographyResultTextElement.textContent = "결과 대기 중...";
 			}
+			updateHomographyCalcStatusIcon("waiting");
 			checkHomographyPrerequisites();
 		});
+	}
+
+	if (viewGlobalAnnotationsJsonBtnElement) {
+		viewGlobalAnnotationsJsonBtnElement.addEventListener(
+			"click",
+			async () => {
+				try {
+					const response = await fetch("/api/global-annotations");
+					if (!response.ok)
+						throw new Error("전체 주석 데이터 로드 실패");
+					const data = await response.json();
+					showJsonPopup("전체 주석 데이터 (서버 캐시)", data);
+				} catch (error) {
+					alert(`데이터 보기 오류: ${error.message}`);
+				}
+			}
+		);
+	}
+
+	if (viewCalibrationResultJsonBtnElement) {
+		viewCalibrationResultJsonBtnElement.addEventListener(
+			"click",
+			async () => {
+				try {
+					const response = await fetch("/api/calibration-result");
+					if (!response.ok)
+						throw new Error("캘리브레이션 결과 로드 실패");
+					const data = await response.json();
+					showJsonPopup("캘리브레이션 결과 (서버 캐시)", data);
+				} catch (error) {
+					alert(`데이터 보기 오류: ${error.message}`);
+				}
+			}
+		);
 	}
 
 	if (requestHomographyBtnElement) {
 		requestHomographyBtnElement.addEventListener("click", async () => {
 			homographyResultTextElement.textContent = "연산 요청 중...";
+			updateHomographyCalcStatusIcon("waiting");
 			requestHomographyBtnElement.disabled = true;
 
 			try {
@@ -1686,6 +1805,7 @@ document.addEventListener("DOMContentLoaded", () => {
 				const result = await response.json();
 
 				if (!response.ok) {
+					updateHomographyCalcStatusIcon("error");
 					throw new Error(
 						result.message ||
 							`Homography 연산 실패 (${response.status})`
@@ -1720,9 +1840,13 @@ document.addEventListener("DOMContentLoaded", () => {
 					null,
 					2
 				);
+				updateHomographyCalcStatusIcon(
+					result.success ? "success" : "error"
+				);
 			} catch (error) {
 				console.error("Homography 연산 요청 오류:", error);
 				homographyResultTextElement.textContent = `오류: ${error.message}`;
+				updateHomographyCalcStatusIcon("error");
 				alert(`Homography 연산 중 오류 발생: ${error.message}`);
 			} finally {
 				checkHomographyPrerequisites();

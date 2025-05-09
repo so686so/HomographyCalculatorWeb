@@ -357,7 +357,7 @@ button.folder-select-btn:hover {
 	height: auto;
 	cursor: crosshair;
 	background-color: #ecf0f1;
-	/* vertical-align: top; */
+	vertical-align: top;
 }
 
 #crosshairCanvas {
@@ -640,6 +640,16 @@ pre {
 	position: relative;
 	animation: popupFadeIn 0.3s ease-out;
 }
+/* JSON 보기 팝업 스타일 */
+.popup-content.json-popup-content {
+	max-width: 700px;
+}
+.popup-content.json-popup-content pre {
+	max-height: 60vh;
+	background-color: #f8f9fa;
+	border: 1px solid #dee2e6;
+	font-size: 0.9em;
+}
 
 @keyframes popupFadeIn {
 	from {
@@ -779,45 +789,147 @@ pre {
 }
 
 /* Homography 연산 페이지 스타일 추가 */
-#homographyStatusSection p {
-	margin: 8px 0;
-	font-size: 0.95em;
-	display: flex;
-	justify-content: space-between;
-	align-items: baseline;
+#homographyStatusSection {
+	background-color: #f8f9fa;
+	padding: 20px;
+	border-radius: 8px;
+	margin-bottom: 25px;
+	border: 1px solid #e0e0e0;
+	max-width: 700px; /* 최대 너비 설정 */
+	margin-left: auto;
+	margin-right: auto;
 }
-#homographyStatusSection p span {
+#homographyStatusSection h2 {
+	margin-top: 0;
+	margin-bottom: 20px;
+	font-size: 1.4em;
+}
+
+#homographyStatusSection .status-line {
+	display: grid;
+	grid-template-columns: minmax(180px, 1.5fr) 1fr auto;
+	gap: 15px;
+	align-items: center;
+	padding: 10px 0;
+	border-bottom: 1px solid #e9ecef;
+}
+#homographyStatusSection .status-line:last-child {
+	border-bottom: none;
+}
+
+#homographyStatusSection .status-label {
+	font-size: 1em;
+	color: #495057;
+	white-space: nowrap;
+	font-weight: 500;
+	padding-right: 10px;
+}
+
+#homographyStatusSection .status-value {
 	font-weight: bold;
-	text-align: right;
-	margin-left: 10px;
+	text-align: left;
+	font-size: 1em;
+	color: #212529;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap; /* 값이 길 경우 한 줄로 표시하고 ... 처리 */
+}
+
+#homographyStatusSection .status-line button {
+	padding: 5px 10px;
+	font-size: 0.85em;
+	min-width: 90px; /* 버튼 최소 너비 통일 */
+	text-align: center; /* 버튼 텍스트 중앙 정렬 */
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+#homographyStatusSection .status-line button.view-json-btn {
+	background-color: #007bff;
+}
+#homographyStatusSection .status-line button.view-json-btn:hover {
+	background-color: #0056b3;
+}
+#homographyStatusSection .status-line button.view-json-btn:disabled {
+	background-color: #ced4da;
+	cursor: not-allowed;
+	color: #6c757d;
 }
 
 #homographyStatusSection button#refreshHomographyStatusBtn {
-	margin-top: 10px;
-	background-color: #5dade2;
+	background-color: #6c757d;
 }
 #homographyStatusSection button#refreshHomographyStatusBtn:hover {
-	background-color: #3498db;
+	background-color: #5a6268;
 }
 
-#homographyActionSection button#requestHomographyBtn {
+#homographyActionContainer {
+	margin-top: 30px;
+	margin-bottom: 25px;
+	display: flex;
+	justify-content: center;
+}
+
+#homographyActionContainer button#requestHomographyBtn {
+	width: 80%;
+	max-width: 400px;
 	padding: 12px 20px;
-	font-size: 1em;
-	background-color: #27ae60;
+	font-size: 1.1em;
+	background-color: #28a745;
+	font-weight: bold;
 }
-#homographyActionSection button#requestHomographyBtn:hover {
-	background-color: #229954;
+#homographyActionContainer button#requestHomographyBtn:hover {
+	background-color: #218838;
 }
-#homographyActionSection button#requestHomographyBtn:disabled {
+#homographyActionContainer button#requestHomographyBtn:disabled {
 	background-color: #bdc3c7;
 }
 
-#homographyResultSection h2 {
-	margin-top: 20px;
+#homographyResultSection {
+	/* Homography 연산 결과 박스 스타일 */
+	background-color: #f8f9fa;
+	padding: 20px;
+	border-radius: 8px;
+	margin-top: 20px; /* 위 요소와 간격 */
+	border: 1px solid #e0e0e0;
+	max-width: 700px; /* 상태 확인 박스와 너비 일치 */
+	margin-left: auto;
+	margin-right: auto;
 }
+
+#homographyResultSection h2 {
+	margin-top: 0;
+	margin-bottom: 15px; /* pre 태그와의 간격 */
+	display: flex;
+	align-items: center;
+	font-size: 1.4em;
+}
+#homographyResultSection .status-icon {
+	margin-left: 10px;
+	font-size: 1.3em; /* 아이콘 크기 조정 */
+	line-height: 1;
+	display: inline-block; /* 아이콘이 공간을 차지하도록 */
+	width: 24px; /* 아이콘 너비 고정 (정렬 도움) */
+	text-align: center; /* 아이콘 내부 정렬 */
+}
+#homographyResultSection .status-icon.waiting::before {
+	content: "⏳";
+	color: #ffc107;
+}
+#homographyResultSection .status-icon.success::before {
+	content: "✔️";
+	color: #28a745;
+}
+#homographyResultSection .status-icon.error::before {
+	content: "❌";
+	color: #dc3545;
+}
+
 #homographyResultSection pre#homographyResultText {
 	min-height: 100px;
-	background-color: #fdfdfd;
+	background-color: #fff; /* 배경색 변경하여 구분 */
+	border: 1px solid #ced4da;
+	padding: 15px;
+	font-size: 0.9em; /* 폰트 크기 조정 */
 }
 
 /* 전체 캐시 초기화 플로팅 버튼 스타일 */
@@ -833,15 +945,14 @@ pre {
 	border-radius: 50%;
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 	font-size: 28px;
-	/* line-height: 60px; */ /* Flexbox 사용 시 line-height는 불필요하거나 방해될 수 있음 */
-	text-align: center; /* 혹시 모를 상황 대비 */
+	text-align: center;
 	cursor: pointer;
 	z-index: 1010;
 	transition: background-color 0.2s ease, transform 0.2s ease;
-	display: flex; /* Flexbox로 내부 컨텐츠 중앙 정렬 */
-	align-items: center; /* 수직 중앙 정렬 */
-	justify-content: center; /* 수평 중앙 정렬 */
-	padding: 0; /* 내부 아이콘 외 불필요한 패딩 제거 */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
 }
 
 .floating-action-button:hover {
