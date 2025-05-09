@@ -2,6 +2,7 @@
 const express = require("express");
 const path = require("path");
 const http = require('http'); // C++ API 서버 상태 확인용
+const { URL } = require('url'); // URL 파싱을 위해 추가
 
 const app = express();
 const port = process.env.PORT || 3003; // 환경 변수 PORT 우선 사용
@@ -13,63 +14,60 @@ let annotationsCache = {
 };
 
 // --- C++ API 서버 정보 설정 ---
-let CPP_API_HOST_ENV = process.env.CPP_API_HOST;
-let CPP_API_PORT_ENV = process.env.CPP_API_PORT;
+const DEFAULT_CPP_API_HOST = 'localhost';
+const DEFAULT_CPP_API_PORT = 3004; // C++ API가 실제로 리슨하는 포트 (사용자 로그 기준)
 
 let CPP_API_HOST;
 let CPP_API_PORT;
 let IS_CPP_API_CONFIGURED = false;
 
-const DEFAULT_CPP_API_HOST = 'localhost'; // C++ API 호스트 기본값
-const DEFAULT_CPP_API_PORT = 8080;      // C++ API 포트 기본값
+const cppApiUrlFromEnv = process.env.CPP_API_URL;
 
-if (CPP_API_HOST_ENV && CPP_API_PORT_ENV) {
-    CPP_API_HOST = CPP_API_HOST_ENV;
-    const parsedPort = parseInt(CPP_API_PORT_ENV, 10);
-    if (!isNaN(parsedPort) && parsedPort > 0 && parsedPort < 65536) {
-        CPP_API_PORT = parsedPort;
-        IS_CPP_API_CONFIGURED = true;
-        console.log(`[Server Startup] C++ API 서버가 다음으로 설정되었습니다: Host=${CPP_API_HOST}, Port=${CPP_API_PORT}`);
-    } else {
-        CPP_API_HOST = DEFAULT_CPP_API_HOST; // 유효하지 않은 포트면 기본값 사용
-        CPP_API_PORT = DEFAULT_CPP_API_PORT;
-        console.warn(`[Server Startup] 경고: CPP_API_PORT 환경 변수 ('${CPP_API_PORT_ENV}')가 유효한 포트 번호가 아닙니다. C++ API 연동이 기본값(Host=${CPP_API_HOST}, Port=${CPP_API_PORT})으로 시도되거나 비활성화됩니다.`);
-        // IS_CPP_API_CONFIGURED는 false로 유지하거나, 기본값으로 시도하게 하려면 true로 설정할 수 있으나,
-        // 명시적 설정이 없을 때의 문제를 방지하기 위해 false로 두는 것이 안전할 수 있습니다.
-        // 여기서는 경고 후, 기본값으로 설정은 하지만 IS_CPP_API_CONFIGURED는 false로 두어 checkCppApiStatus에서 막도록 합니다.
-        // 만약 기본값으로라도 시도하게 하려면 아래 주석을 해제하고 위의 IS_CPP_API_CONFIGURED = false를 제거
-        // IS_CPP_API_CONFIGURED = true;
+if (cppApiUrlFromEnv) {
+    try {
+        const url = new URL(cppApiUrlFromEnv);
+        CPP_API_HOST = url.hostname;
+        const parsedPort = parseInt(url.port, 10);
+        if (url.protocol === 'http:' && CPP_API_HOST && !isNaN(parsedPort) && parsedPort > 0 && parsedPort < 65536) {
+            CPP_API_PORT = parsedPort;
+            IS_CPP_API_CONFIGURED = true;
+            console.log(`[Server Startup] C++ API 서버 환경 변수 CPP_API_URL 사용: Host=${CPP_API_HOST}, Port=${CPP_API_PORT}`);
+        } else {
+            throw new Error(`CPP_API_URL ('${cppApiUrlFromEnv}')에서 유효한 호스트 또는 포트를 추출할 수 없습니다.`);
+        }
+    } catch (error) {
+        console.warn(`[Server Startup] 경고: CPP_API_URL ('${cppApiUrlFromEnv}') 분석 중 오류: ${error.message}. CPP_API_HOST/PORT 변수 또는 기본값을 확인합니다.`);
     }
-} else {
-    CPP_API_HOST = DEFAULT_CPP_API_HOST;
-    CPP_API_PORT = DEFAULT_CPP_API_PORT;
-    console.warn(`[Server Startup] 경고: CPP_API_HOST 또는 CPP_API_PORT 환경 변수가 설정되지 않았습니다. C++ API 연동 기능은 Host=${CPP_API_HOST}, Port=${CPP_API_PORT} (기본값)으로 시도되거나, 해당 주소에 서버가 없으면 비활성화된 것처럼 동작합니다.`);
-    // 이 경우에도 IS_CPP_API_CONFIGURED = false로 두어, 명시적 설정 없이는 checkCppApiStatus에서 실제 호출을 막습니다.
-    // 만약 기본값으로라도 시도하게 하려면 아래 주석을 해제
-    // IS_CPP_API_CONFIGURED = true;
-}
-// 최종적으로, 환경 변수가 명확히 설정되고 유효할 때만 IS_CPP_API_CONFIGURED를 true로 합니다.
-if (process.env.CPP_API_HOST && process.env.CPP_API_PORT) {
-     const parsedPortCheck = parseInt(process.env.CPP_API_PORT, 10);
-     if (!isNaN(parsedPortCheck) && parsedPortCheck > 0 && parsedPortCheck < 65536) {
-        IS_CPP_API_CONFIGURED = true;
-        CPP_API_HOST = process.env.CPP_API_HOST; // 확실하게 환경변수 값 사용
-        CPP_API_PORT = parsedPortCheck;
-        console.log(`[Server Startup] C++ API 환경변수 감지: Host=${CPP_API_HOST}, Port=${CPP_API_PORT}. 연동 활성화됨.`);
-     } else {
-        IS_CPP_API_CONFIGURED = false;
-        console.warn(`[Server Startup] C++ API 환경변수는 있으나 포트(${process.env.CPP_API_PORT})가 유효하지 않아 연동 비활성화됨.`);
-     }
-} else {
-    IS_CPP_API_CONFIGURED = false;
-    console.warn(`[Server Startup] C++ API 환경변수 (CPP_API_HOST, CPP_API_PORT)가 설정되지 않아 연동 비활성화됨. 기본값 (${DEFAULT_CPP_API_HOST}:${DEFAULT_CPP_API_PORT}) 정보만 로깅됨.`);
-    CPP_API_HOST = DEFAULT_CPP_API_HOST; // 로그 및 내부 참조용 기본값
-    CPP_API_PORT = DEFAULT_CPP_API_PORT;
 }
 
+if (!IS_CPP_API_CONFIGURED) {
+    const hostFromEnv = process.env.CPP_API_HOST;
+    const portStrFromEnv = process.env.CPP_API_PORT;
+
+    if (hostFromEnv && portStrFromEnv) {
+        const parsedPort = parseInt(portStrFromEnv, 10);
+        if (!isNaN(parsedPort) && parsedPort > 0 && parsedPort < 65536) {
+            CPP_API_HOST = hostFromEnv;
+            CPP_API_PORT = parsedPort;
+            IS_CPP_API_CONFIGURED = true;
+            console.log(`[Server Startup] C++ API 서버 환경 변수 CPP_API_HOST/PORT 사용: Host=${CPP_API_HOST}, Port=${CPP_API_PORT}`);
+        } else {
+            console.warn(`[Server Startup] 경고: CPP_API_HOST/PORT 환경 변수는 있으나 포트 ('${portStrFromEnv}')가 유효하지 않습니다. 기본값을 사용합니다.`);
+            CPP_API_HOST = DEFAULT_CPP_API_HOST;
+            CPP_API_PORT = DEFAULT_CPP_API_PORT;
+            IS_CPP_API_CONFIGURED = true;
+        }
+    } else {
+        console.log(`[Server Startup] C++ API 서버 관련 환경 변수(CPP_API_URL, CPP_API_HOST/PORT) 없음. 기본값 사용: Host=${DEFAULT_CPP_API_HOST}, Port=${DEFAULT_CPP_API_PORT}`);
+        CPP_API_HOST = DEFAULT_CPP_API_HOST;
+        CPP_API_PORT = DEFAULT_CPP_API_PORT;
+        IS_CPP_API_CONFIGURED = true;
+    }
+}
 
 const CPP_API_HEALTH_ENDPOINT = process.env.CPP_API_HEALTH_ENDPOINT || '/health';
-const CPP_API_HOMOGRAPHY_ENDPOINT = process.env.CPP_API_HOMOGRAPHY_ENDPOINT || '/calculate-homography';
+// C++ API의 실제 Homography 연산 경로로 수정
+const CPP_API_HOMOGRAPHY_ENDPOINT = process.env.CPP_API_HOMOGRAPHY_ENDPOINT || '/api/homography/calculate_dynamic';
 
 
 app.use(express.json());
@@ -326,11 +324,6 @@ app.delete("/api/all-data", (req, res) => {
         savedGlobalAnnotationsData: null,
         savedCalibrationResult: null,
     };
-    Object.keys(annotationsCache).forEach(key => {
-        if (key !== 'savedGlobalAnnotationsData' && key !== 'savedCalibrationResult') {
-            delete annotationsCache[key];
-        }
-    });
     console.log(
         "[Server] 모든 주석, 완료 상태, 저장된 전체 JSON 및 캘리브레이션 데이터가 초기화되었습니다."
     );
@@ -339,19 +332,19 @@ app.delete("/api/all-data", (req, res) => {
 
 
 // --- Homography 연산 관련 API ---
-// C++ API 서버 상태 확인 함수
 function checkCppApiStatus() {
     if (!IS_CPP_API_CONFIGURED) {
-        // IS_CPP_API_CONFIGURED가 false이면 C++ API가 구성되지 않았거나 환경 변수 설정에 문제가 있는 것이므로,
-        // 네트워크 요청을 시도하지 않고 즉시 '오프라인'으로 간주합니다.
-        console.log("[checkCppApiStatus] C++ API가 구성되지 않았거나 환경 변수 설정이 올바르지 않아 상태 확인을 생략합니다.");
-        return Promise.resolve(false);
+        console.warn("[checkCppApiStatus] C++ API 접속 정보가 유효하게 설정되지 않았을 수 있습니다. (환경 변수 확인). 상태 확인을 시도합니다.");
     }
 
     return new Promise((resolve) => {
+        if (!CPP_API_HOST || !CPP_API_PORT) {
+            console.error("[checkCppApiStatus] C++ API 호스트 또는 포트가 정의되지 않았습니다.");
+            return resolve(false);
+        }
         const options = {
-            host: CPP_API_HOST, // IS_CPP_API_CONFIGURED가 true일 때만 유효한 값으로 간주
-            port: CPP_API_PORT, // IS_CPP_API_CONFIGURED가 true일 때만 유효한 값으로 간주
+            host: CPP_API_HOST,
+            port: CPP_API_PORT,
             path: CPP_API_HEALTH_ENDPOINT,
             method: 'GET',
             timeout: 2000,
@@ -372,43 +365,60 @@ function checkCppApiStatus() {
     });
 }
 
-// Homography 페이지 상태 확인 API
 app.get("/api/homography/status", async (req, res) => {
-    // IS_CPP_API_CONFIGURED 가 false이면 cppApiOnline도 false가 되어야 함.
-    // checkCppApiStatus 내부에서 IS_CPP_API_CONFIGURED를 이미 확인하므로, 여기서의 호출은 안전.
     const cppApiOnline = await checkCppApiStatus();
     res.json({
         hasGlobalAnnotations: !!annotationsCache.savedGlobalAnnotationsData,
         hasCalibrationResult: !!annotationsCache.savedCalibrationResult,
-        isCppApiOnline: cppApiOnline, // IS_CPP_API_CONFIGURED가 false면 이 값은 false가 됨
-        isCppApiConfigured: IS_CPP_API_CONFIGURED // 클라이언트에게 C++ API 설정 여부도 전달
+        isCppApiOnline: cppApiOnline,
+        isCppApiConfigured: IS_CPP_API_CONFIGURED
     });
 });
 
-// Homography 연산 요청 API
+// Homography 연산 요청 API (서버 캐시 데이터 사용)
 app.post("/api/homography/calculate", async (req, res) => {
     if (!IS_CPP_API_CONFIGURED) {
-        return res.status(503).json({ message: "C++ API 서버가 구성되지 않았습니다. 환경 변수를 확인해주세요." });
+        return res.status(503).json({ message: "C++ API 서버가 올바르게 구성되지 않았습니다. 환경 변수를 확인해주세요." });
     }
 
-    const requestData = req.body;
-    if (!requestData || !requestData.calibration_config || !requestData.survey_data || !Array.isArray(requestData.survey_data.data)) {
-        return res.status(400).json({ message: "잘못된 요청 데이터 형식입니다." });
+    // 1. 서버 캐시에서 데이터 가져오기
+    const calibrationData = annotationsCache.savedCalibrationResult;
+    const globalAnnotations = annotationsCache.savedGlobalAnnotationsData;
+
+    if (!calibrationData || typeof calibrationData.CalibrationInfo === "undefined") {
+        return res.status(400).json({ message: "서버에 저장된 캘리브레이션 데이터가 유효하지 않습니다." });
     }
-    if (requestData.survey_data.data.length < 4) {
-        return res.status(400).json({ message: "Homography 연산을 위해서는 최소 4개의 포인트 쌍이 필요합니다." });
+    if (!globalAnnotations || !Array.isArray(globalAnnotations.data) || globalAnnotations.data.length < 4) {
+        return res.status(400).json({ message: "서버에 저장된 전체 주석 데이터가 유효하지 않거나, Homography 연산을 위한 포인트 쌍(최소 4개)이 부족합니다." });
     }
 
+    // 2. C++ API가 요구하는 형식으로 페이로드 구성
+    const surveyDataForCpp = globalAnnotations.data.map(point => ({
+        camera_coords: point.camera_points, // C++ API는 'camera_coords'를 기대
+        ground_coords: point.ground_points  // C++ API는 'ground_coords'를 기대
+    }));
+
+    const payloadToCpp = {
+        calibration_config: calibrationData, // 전체 캘리브레이션 객체 전달 (내부에 CalibrationInfo 포함)
+        survey_data: {
+            data: surveyDataForCpp
+        }
+    };
+
+    console.log("[Server /api/homography/calculate] C++ API 요청 페이로드:", JSON.stringify(payloadToCpp, null, 2));
+
+
+    // 3. C++ API 서버 상태 확인 및 요청
     const cppApiOnline = await checkCppApiStatus();
     if (!cppApiOnline) {
-        return res.status(503).json({ message: "C++ API 서버에 연결할 수 없습니다. 서버 상태를 확인하거나 나중에 다시 시도해주세요." });
+        return res.status(503).json({ message: `C++ API 서버(${CPP_API_HOST}:${CPP_API_PORT})에 연결할 수 없습니다. 서버 상태를 확인하거나 나중에 다시 시도해주세요.` });
     }
 
     try {
         const options = {
             host: CPP_API_HOST,
             port: CPP_API_PORT,
-            path: CPP_API_HOMOGRAPHY_ENDPOINT,
+            path: CPP_API_HOMOGRAPHY_ENDPOINT, // C++ API의 실제 Homography 연산 경로
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -426,10 +436,10 @@ app.post("/api/homography/calculate", async (req, res) => {
                 try {
                     const result = JSON.parse(responseBody);
                     if (cppRes.statusCode === 200) {
-                        console.log("[Server] Homography 연산 성공:", result);
+                        console.log("[Server] Homography 연산 성공 (C++ API 응답):", result);
                         res.status(200).json(result);
                     } else {
-                        console.error("[Server] Homography 연산 C++ API 오류:", result);
+                        console.error("[Server] Homography 연산 C++ API 오류 응답:", result);
                         res.status(cppRes.statusCode).json(result);
                     }
                 } catch (parseError) {
@@ -450,7 +460,7 @@ app.post("/api/homography/calculate", async (req, res) => {
             res.status(504).json({ message: "C++ API 서버 요청 시간 초과" });
         });
 
-        cppRequest.write(JSON.stringify(requestData));
+        cppRequest.write(JSON.stringify(payloadToCpp));
         cppRequest.end();
 
     } catch (error) {
@@ -461,8 +471,10 @@ app.post("/api/homography/calculate", async (req, res) => {
 
 
 app.listen(port, () => {
-    console.log(`서버가 http://localhost:${port} 에서 실행 중입니다.`);
-    if (!IS_CPP_API_CONFIGURED) {
-        console.warn(`[Server Startup] C++ API 연동이 비활성화 상태입니다. Homography 연산 기능 사용 불가. (환경 변수 CPP_API_HOST, CPP_API_PORT 확인 필요)`);
+    console.log(`Node.js 서버가 http://localhost:${port} 에서 실행 중입니다.`);
+    if (IS_CPP_API_CONFIGURED && CPP_API_HOST && CPP_API_PORT) {
+        console.log(`C++ API 서버 연동 설정: Host=${CPP_API_HOST}, Port=${CPP_API_PORT}, Health Endpoint=${CPP_API_HEALTH_ENDPOINT}, Homography Endpoint=${CPP_API_HOMOGRAPHY_ENDPOINT}`);
+    } else {
+        console.warn(`[Server Startup] C++ API 연동이 올바르게 구성되지 않았습니다. Homography 연산 기능이 작동하지 않을 수 있습니다. (환경 변수 CPP_API_URL 또는 CPP_API_HOST/PORT 확인 필요)`);
     }
 });

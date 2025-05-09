@@ -95,8 +95,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentClickedCameraY = null;
     let imageNaturalWidth = 0;
     let imageNaturalHeight = 0;
-    let globalJsonData = { data: [] }; // 클라이언트 측 캐시
-    let clientCalibrationResult = null; // 클라이언트 측 캐시
+    let globalJsonData = { data: [] };
+    let clientCalibrationResult = null;
     let currentImageAnnotations = [];
     let currentImageDefinedPoints = [];
     let allFilesInFolder = [];
@@ -127,8 +127,10 @@ document.addEventListener("DOMContentLoaded", () => {
             targetViewId === "viewHomographyCalc"
         );
 
-        // Homography 페이지가 선택되면 상태를 확인합니다.
         if (targetViewId === "viewHomographyCalc") {
+            if (homographyResultTextElement) {
+                homographyResultTextElement.textContent = "결과 대기 중...";
+            }
             checkHomographyPrerequisites();
         }
     }
@@ -828,7 +830,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const deleteBtn = createButton("삭제 (완전)", () =>
                 handleDeletePoint(null, pointData.id)
             );
-            deleteBtn.classList.add("delete-point-btn"); // Ensure this class is styled
+            deleteBtn.classList.add("delete-point-btn");
             crosshairActionMenuElement.appendChild(deleteBtn);
         }
 
@@ -1086,9 +1088,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 (p) => p.id === pointId
             );
             if (idx !== -1) currentImageDefinedPoints[idx] = updatedPt;
+
             if (updatedPt.isGloballySaved) {
-                if (!globalJsonData.data.some((p) => p.id === updatedPt.id))
+                if (!globalJsonData.data.some((p) => p.id === updatedPt.id)) {
                     globalJsonData.data.push({ ...updatedPt });
+                } else {
+                    const globalIdx = globalJsonData.data.findIndex(p => p.id === updatedPt.id);
+                    if (globalIdx !== -1) globalJsonData.data[globalIdx] = { ...updatedPt };
+                }
             } else {
                 globalJsonData.data = globalJsonData.data.filter(
                     (p) => p.id !== pointId
@@ -1099,6 +1106,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 null,
                 2
             );
+
             renderDefinedPointsList();
             deriveAndDrawAnnotations();
             updateStatsHeader();
@@ -1164,16 +1172,19 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const res = await fetch("/api/all-data", { method: "DELETE" });
             if (!res.ok) throw new Error(`초기화 실패(${res.status})`);
-            globalJsonData = { data: [] }; // 클라이언트 측 globalJsonData도 초기화
+            globalJsonData = { data: [] };
+            clientCalibrationResult = null;
             jsonResultGlobalElement.textContent = JSON.stringify(
                 globalJsonData,
                 null,
                 2
             );
+            if (calibrationOutputJsonElement) calibrationOutputJsonElement.value = "";
+
             if (currentImageIdentifier && currentSelectedFileObject)
-                await selectImage(currentSelectedFileObject); // 현재 이미지 정보 다시 로드
-            else clearMainContentForNewFolder(); // 선택된 이미지 없으면 초기화
-            if (allFilesInFolder.length > 0) await renderImageList(); // 이미지 목록 다시 렌더링
+                await selectImage(currentSelectedFileObject);
+            else clearMainContentForNewFolder();
+            if (allFilesInFolder.length > 0) await renderImageList();
             else imageListElement.innerHTML = "<li>폴더 선택 필요.</li>";
             alert("모든 서버 및 클라이언트 데이터 초기화 완료.");
             updateStatsHeader();
@@ -1247,7 +1258,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             "현재 전체 JSON 데이터를 불러온 파일 내용으로 대체합니까?"
                         )
                     ) {
-                        globalJsonData = data; // 클라이언트 측 globalJsonData 업데이트
+                        globalJsonData = data;
                         jsonResultGlobalElement.textContent = JSON.stringify(
                             globalJsonData,
                             null,
@@ -1299,7 +1310,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function updateStatsHeader() {
         if (statsTotalConfirmedElement)
-            statsTotalConfirmedElement.textContent = globalJsonData.data ? globalJsonData.data.length : 0; // 클라이언트 캐시 기준
+            statsTotalConfirmedElement.textContent = globalJsonData.data ? globalJsonData.data.length : 0;
         let tempCnt = 0,
             confCnt = 0;
         if (currentImageDefinedPoints) {
@@ -1400,7 +1411,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         }));
                     throw new Error(errData.message);
                 }
-                clientCalibrationResult = calibrationDataToSave; // 클라이언트 측 캐시 업데이트
+                clientCalibrationResult = calibrationDataToSave;
                 alert(
                     "캘리브레이션 결과가 서버에 성공적으로 저장(캐시)되었습니다."
                 );
@@ -1454,7 +1465,6 @@ document.addEventListener("DOMContentLoaded", () => {
         statusCalibrationResultElement.textContent = "확인 중...";
         statusCppApiServerElement.textContent = "확인 중...";
         requestHomographyBtnElement.disabled = true;
-        homographyResultTextElement.textContent = "결과 대기 중...";
 
         try {
             const response = await fetch("/api/homography/status");
@@ -1469,16 +1479,14 @@ document.addEventListener("DOMContentLoaded", () => {
             statusCalibrationResultElement.textContent = status.hasCalibrationResult ? "데이터 있음 (서버 캐시)" : "데이터 없음 (서버 캐시)";
             statusCalibrationResultElement.style.color = status.hasCalibrationResult ? "green" : "red";
 
-            // C++ API 서버 상태 표시 로직 수정 (isCppApiConfigured 값 활용)
             if (!status.isCppApiConfigured) {
                 statusCppApiServerElement.textContent = "C++ API 구성 안됨 (환경 변수 확인 필요)";
-                statusCppApiServerElement.style.color = "orange"; // 구성 안됨 상태는 주황색으로 표시
+                statusCppApiServerElement.style.color = "orange";
             } else {
                 statusCppApiServerElement.textContent = status.isCppApiOnline ? "온라인" : "오프라인 또는 응답 없음";
                 statusCppApiServerElement.style.color = status.isCppApiOnline ? "green" : "red";
             }
 
-            // 버튼 활성화 조건 수정 (isCppApiConfigured 값 포함)
             if (status.hasGlobalAnnotations && status.hasCalibrationResult && status.isCppApiConfigured && status.isCppApiOnline) {
                 requestHomographyBtnElement.disabled = false;
             } else {
@@ -1498,7 +1506,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (refreshHomographyStatusBtnElement) {
-        refreshHomographyStatusBtnElement.addEventListener("click", checkHomographyPrerequisites);
+        refreshHomographyStatusBtnElement.addEventListener("click", () => {
+            if (homographyResultTextElement) {
+                homographyResultTextElement.textContent = "결과 대기 중...";
+            }
+            checkHomographyPrerequisites();
+        });
     }
 
     if (requestHomographyBtnElement) {
@@ -1507,45 +1520,9 @@ document.addEventListener("DOMContentLoaded", () => {
             requestHomographyBtnElement.disabled = true;
 
             try {
-                const annotationsResponse = await fetch("/api/global-annotations");
-                if (!annotationsResponse.ok) throw new Error("전체 주석 데이터 로드 실패");
-                const surveyDataRaw = await annotationsResponse.json();
-
-                const calibrationResponse = await fetch("/api/calibration-result");
-                if (!calibrationResponse.ok) throw new Error("캘리브레이션 결과 로드 실패");
-                const calibrationDataRaw = await calibrationResponse.json();
-
-                if (!surveyDataRaw || !surveyDataRaw.data || surveyDataRaw.data.length < 4) {
-                    alert("Homography 연산을 위한 측량 데이터(최소 4쌍)가 충분하지 않습니다.");
-                    homographyResultTextElement.textContent = "측량 데이터 부족";
-                    // requestHomographyBtnElement.disabled = false; // 버튼을 다시 활성화하지 않고, 상태 새로고침을 통해 제어
-                    checkHomographyPrerequisites(); // 상태를 다시 확인하여 버튼 상태 업데이트
-                    return;
-                }
-                 if (!calibrationDataRaw || !calibrationDataRaw.CalibrationInfo) {
-                    alert("캘리브레이션 데이터가 올바르지 않습니다.");
-                    homographyResultTextElement.textContent = "캘리브레이션 데이터 오류";
-                    // requestHomographyBtnElement.disabled = false;
-                    checkHomographyPrerequisites();
-                    return;
-                }
-
-                const payload = {
-                    calibration_config: calibrationDataRaw,
-                    survey_data: {
-                        data: surveyDataRaw.data.map(point => ({
-                            camera_coords: point.camera_points,
-                            ground_coords: point.ground_points
-                        }))
-                    }
-                };
-
-                console.log("[Homography Request] Payload:", JSON.stringify(payload, null, 2));
-
                 const response = await fetch("/api/homography/calculate", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload),
                 });
 
                 const result = await response.json();
@@ -1554,14 +1531,32 @@ document.addEventListener("DOMContentLoaded", () => {
                     throw new Error(result.message || `Homography 연산 실패 (${response.status})`);
                 }
 
+                // 결과 객체에서 homography_matrix를 요청하신 형식의 문자열로 변환
+                if (result.success && result.homography_matrix && Array.isArray(result.homography_matrix)) {
+                    const matrix = result.homography_matrix;
+                    let formattedMatrixString = "";
+                    // 3x3 행렬인지 확인
+                    if (matrix.length === 3 && matrix.every(row => Array.isArray(row) && row.length === 3)) {
+                        // 각 행의 숫자들을 문자열로 변환하고 ", "로 연결
+                        // 그 다음 각 행 문자열을 "; "로 연결
+                        // 마지막으로 전체를 "["와 "]"로 감쌈
+                        formattedMatrixString = "[" + matrix.map(row => row.join(", ")).join("; ") + "]";
+                    } else {
+                        // 예상치 못한 형식의 행렬이면 원래대로 JSON 문자열화
+                        formattedMatrixString = JSON.stringify(matrix);
+                    }
+                    // 변환된 문자열을 result 객체의 homography_matrix 키 값으로 대체
+                    result.homography_matrix = formattedMatrixString;
+                }
+
                 homographyResultTextElement.textContent = JSON.stringify(result, null, 2);
+
 
             } catch (error) {
                 console.error("Homography 연산 요청 오류:", error);
                 homographyResultTextElement.textContent = `오류: ${error.message}`;
                 alert(`Homography 연산 중 오류 발생: ${error.message}`);
             } finally {
-                // 연산 시도 후에는 항상 상태를 다시 확인하여 버튼 상태를 정확하게 업데이트합니다.
                 checkHomographyPrerequisites();
             }
         });

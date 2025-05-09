@@ -1,13 +1,6 @@
-
-# Initialize after git clone
-
-- npm init -y
-
-- npm install express
-
 # Start service
 
-- sudo docker-compose up -d
+- sudo docker-compose down && sudo docker-compose up --build -d
 
 - `localhost:45316`
 
