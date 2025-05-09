@@ -8,43 +8,49 @@ services:
   #######################
   node_app:
     build:
-      context: ./node_app
-      dockerfile: Dockerfile
+      context: ./node_app # Node.js 앱 파일들이 있는 디렉토리
+      dockerfile: Dockerfile # ./node_app/Dockerfile 을 사용
     ports:
-      - "45316:3003" # Node.js 앱 컨테이너 포트: 3003
+      - "45316:3003" # 호스트 포트:컨테이너 포트 (Node.js 앱이 3003번 포트 사용 가정)
     volumes:
       - ./node_app:/usr/src/app
       - /usr/src/app/node_modules
     environment:
       - NODE_ENV=development
-      - CPP_API_URL=http://cpp_api_service:3004 # C++ 서비스 내부 포트: 3004
+      - CPP_API_URL=http://cpp_api_service:3004 # cpp_api_service가 내부적으로 3004 포트 사용 가정
     depends_on:
       cpp_api_service:
-        condition: service_healthy
+        condition: service_healthy # cpp_api_service가 healthy 상태가 될 때까지 기다림
     restart: unless-stopped
 
   ##########################
   # C++ OpenCV API Service #
   ##########################
   cpp_api_service:
-    image: raid:1.0 # 로컬에 있는 'raid:1.0' 이미지를 사용하도록 지정
-    pull_policy: never # 이미지를 pull 하려고 시도하지 않음. 로컬에 없으면 서비스 시작 실패.
+    build:
+      context: ./cpp_opencv_api # C++ 앱 소스 및 Dockerfile이 있는 디렉토리
+      dockerfile: Dockerfile    # ./cpp_opencv_api/Dockerfile 을 사용하여 이미지 빌드
     ports:
-      # 호스트의 45317 포트를 컨테이너의 3004 포트로 연결
-      # 'raid:1.0' 이미지는 내부적으로 3004 포트에서 API 서비스를 실행해야 함
+      # 호스트의 45317 포트를 컨테이너의 3004 포트(C++ API 서버 리슨 포트)로 연결
       - "45317:3004"
     # volumes:
-      # 'raid:1.0' 이미지가 외부 볼륨(예: 설정 파일, 데이터 저장 폴더 등)을 사용한다면 여기에 정의
-      # 예: - ./cpp_service_config_files:/etc/raid_app/config
+      # 개발 중 C++ 소스 코드 변경을 즉시 반영하려면 아래 주석 해제.
+      # 단, CMake 프로젝트이므로 코드 변경 시 이미지 재빌드(docker-compose build cpp_api_service)가
+      # 더 안정적일 수 있습니다. 이 볼륨 마운트는 CMakeLists.txt나 Dockerfile 자체를 자주 수정하며
+      # 빠른 테스트를 할 때 유용할 수 있습니다.
+      # - ./cpp_opencv_api/src:/usr/src/cpp_api/src
+      # 로그 파일이나 생성된 데이터를 호스트에서 확인하고 싶을 때 사용 가능
+      # - ./cpp_opencv_api_logs:/usr/src/cpp_api/logs
     environment:
       - TZ=Asia/Seoul # 컨테이너 시간대 설정
-      # 'raid:1.0' 이미지가 실행될 때 필요한 추가 환경 변수가 있다면 여기에 정의
-      # 예: - LOG_LEVEL=INFO
+      # C++ 애플리케이션에 필요한 다른 환경 변수가 있다면 여기에 추가
+      # 예: - LOG_LEVEL_APP=DEBUG
     healthcheck:
-      # 'raid:1.0' 이미지 내부의 애플리케이션이 3004 포트에서 /health 엔드포인트를 제공해야 함
+      # C++ API 서버의 /health 엔드포인트를 호출하여 상태 확인
+      # 이 포트는 C++ 애플리케이션이 컨테이너 내부에서 리슨하는 포트여야 합니다 (3004).
       test: ["CMD", "curl", "-f", "http://localhost:3004/health"]
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 30s # 이미 만들어진 이미지의 애플리케이션 시작 시간 확보
+      start_period: 45s # 컴파일 및 애플리케이션 시작 시간을 고려하여 충분히 길게 설정
     restart: unless-stopped

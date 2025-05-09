@@ -1,240 +1,253 @@
 <!DOCTYPE html>
 <html lang="ko">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>이미지 좌표 추출기</title>
-		<link rel="stylesheet" href="/css/style.css" />
-	</head>
-	<body>
-		<div class="stats-header">
-			<div class="menu-section">
-				<button id="hamburgerMenuBtn" aria-label="메뉴 열기/닫기">
-					☰
-				</button>
-				<nav
-					id="mainNavigationMenu"
-					class="navigation-menu visually-hidden"
-				>
-					<ul>
-						<li>
-							<a
-								href="#"
-								class="menu-item active-menu-item"
-								data-page="viewCoordInput"
-								>이미지 좌표 및 지면 실측 좌표 입력</a
-							>
-						</li>
-						<li>
-							<a
-								href="#"
-								class="menu-item"
-								data-page="viewJsonConversion"
-								>캘리브레이션 결과 JSON 변환</a
-							>
-						</li>
-						<li>
-							<a
-								href="#"
-								class="menu-item"
-								data-page="viewHomographyCalc"
-								>실측자료 이용 Homography 연산</a
-							>
-						</li>
-					</ul>
-				</nav>
-			</div>
-			<div class="stats-display">
-				<span>확정(전체): <span id="statsTotalConfirmed">0</span></span>
-				<span> | </span>
-				<span
-					>임시(현재):
-					<span id="statsCurrentImageTemporary">0</span></span
-				>
-				<span> | </span>
-				<span
-					>확정(현재):
-					<span id="statsCurrentImageConfirmed">0</span></span
-				>
-			</div>
-		</div>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>이미지 좌표 추출기</title>
+        <link rel="stylesheet" href="/css/style.css" />
+    </head>
+    <body>
+        <div class="stats-header">
+            <div class="menu-section">
+                <button id="hamburgerMenuBtn" aria-label="메뉴 열기/닫기">
+                    ☰
+                </button>
+                <nav
+                    id="mainNavigationMenu"
+                    class="navigation-menu visually-hidden"
+                >
+                    <ul>
+                        <li>
+                            <a
+                                href="#"
+                                class="menu-item active-menu-item"
+                                data-page="viewCoordInput"
+                                >이미지 좌표 및 지면 실측 좌표 입력</a
+                            >
+                        </li>
+                        <li>
+                            <a
+                                href="#"
+                                class="menu-item"
+                                data-page="viewJsonConversion"
+                                >캘리브레이션 결과 JSON 변환</a
+                            >
+                        </li>
+                        <li>
+                            <a
+                                href="#"
+                                class="menu-item"
+                                data-page="viewHomographyCalc"
+                                >실측자료 이용 Homography 연산</a
+                            >
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+            <div class="stats-display">
+                <span>확정(전체): <span id="statsTotalConfirmed">0</span></span>
+                <span> | </span>
+                <span
+                    >임시(현재):
+                    <span id="statsCurrentImageTemporary">0</span></span
+                >
+                <span> | </span>
+                <span
+                    >확정(현재):
+                    <span id="statsCurrentImageConfirmed">0</span></span
+                >
+            </div>
+        </div>
 
-		<div class="container">
-			<div class="sidebar">
-				<h2>이미지 폴더 선택</h2>
-				<input
-					type="file"
-					id="folderPicker"
-					webkitdirectory
-					directory
-					multiple
-					style="display: none"
-				/>
-				<button id="customFolderButton" class="folder-select-btn">
-					폴더 선택
-				</button>
+        <div class="container">
+            <div class="sidebar">
+                <h2>이미지 폴더 선택</h2>
+                <input
+                    type="file"
+                    id="folderPicker"
+                    webkitdirectory
+                    directory
+                    multiple
+                    style="display: none"
+                />
+                <button id="customFolderButton" class="folder-select-btn">
+                    폴더 선택
+                </button>
 
-				<h2>이미지 목록</h2>
-				<ul id="imageList">
-					<li>폴더를 선택해주세요.</li>
-				</ul>
-				<button
-					id="markCompleteBtn"
-					style="margin-top: 10px; display: none"
-				>
-					현재 이미지 작업 완료
-				</button>
+                <h2>이미지 목록</h2>
+                <ul id="imageList">
+                    <li>폴더를 선택해주세요.</li>
+                </ul>
+                <button
+                    id="markCompleteBtn"
+                    style="margin-top: 10px; display: none"
+                >
+                    현재 이미지 작업 완료
+                </button>
 
-				<div id="imageInfo" class="sidebar-bottom-info">
-					<h2>이미지 정보</h2>
-					<p>선택 폴더: <span id="infoSelectedFolder">N/A</span></p>
-					<p>
-						선택 이미지: <span id="infoSelectedImageFile">N/A</span>
-					</p>
-					<p>해상도: <span id="infoResolution">N/A</span></p>
-				</div>
-			</div>
+                <div id="imageInfo" class="sidebar-bottom-info">
+                    <h2>이미지 정보</h2>
+                    <p>선택 폴더: <span id="infoSelectedFolder">N/A</span></p>
+                    <p>
+                        선택 이미지: <span id="infoSelectedImageFile">N/A</span>
+                    </p>
+                    <p>해상도: <span id="infoResolution">N/A</span></p>
+                </div>
+            </div>
 
-			<div id="pageContainer" class="page-container">
-				<div id="viewCoordInput" class="page-view current-view">
-					<div class="main-content">
-						<h1>이미지 좌표 및 Ground Truth 입력</h1>
-						<p>
-							<em id="imageSelectionPrompt"
-								>좌측 상단의 '폴더 선택' 버튼으로 작업할 이미지
-								폴더를 지정해주세요.</em
-							>
-						</p>
-						<div id="imageContainer">
-							<img
-								id="uploadedImage"
-								src="#"
-								alt="선택된 이미지"
-								style="display: none"
-							/>
-							<canvas id="crosshairCanvas"></canvas>
-							<div
-								id="crosshairTooltip"
-								style="display: none"
-							></div>
-							<div
-								id="crosshairActionMenu"
-								class="action-menu"
-								style="display: none"
-							></div>
-						</div>
-						<div id="outputJson" style="display: none">
-							<h2>현재 작업중인/선택된 포인트 JSON</h2>
-							<pre id="jsonResultCurrent">{}</pre>
-						</div>
-						<div id="definedPointsContainer" style="display: none">
-							<h2>현재 이미지 주석 목록</h2>
-							<ul id="definedPointsList"></ul>
-						</div>
-						<div id="globalJsonOutput">
-							<div class="json-output-header">
-								<h2>전체 JSON 데이터</h2>
-								<div class="json-output-buttons">
-									<input
-										type="file"
-										id="importJsonFile"
-										accept=".json"
-										style="display: none"
-									/>
-									<button id="importJsonBtn">Import</button>
-									<button id="exportJsonBtn">Export</button>
-									<button id="saveGlobalJsonBtn">Save</button>
-									<button id="resetGlobalJsonBtn">
-										Reset
-									</button>
-								</div>
-							</div>
-							<pre id="jsonResultGlobal">{"data": []}</pre>
-						</div>
-					</div>
-				</div>
-				<div
-					id="viewJsonConversion"
-					class="page-view"
-					style="display: none"
-				>
-					<div class="main-content">
-						<h1>캘리브레이션 결과 JSON 변환</h1>
-						<div class="conversion-tool-container">
-							<div class="conversion-input-area">
-								<h2>입력 (Plain Text)</h2>
-								<textarea
-									id="calibrationInputText"
-									rows="15"
-									placeholder="예시:&#10;fx = 1859.275745&#10;fy = 1859.275745&#10;cx = 1296.0&#10;cy = 960.0&#10;k1 = -0.374709&#10;k2 = 0.114566&#10;p1 = 0.001921&#10;p2 = 0.004061"
-								></textarea>
-							</div>
-							<div class="conversion-buttons-area">
-								<button id="convertToJsonBtn">
-									&gt;&gt; 변환 &gt;&gt;
-								</button>
-								<button id="saveCalibrationResultBtn">
-									Save
-								</button>
-								<button id="resetCalibrationTextBtn">
-									초기화
-								</button>
-							</div>
-							<div class="conversion-output-area">
-								<h2>출력 (JSON)</h2>
-								<textarea
-									id="calibrationOutputJson"
-									rows="15"
-									readonly
-									placeholder="변환 결과가 여기에 표시됩니다."
-								></textarea>
-							</div>
-						</div>
-					</div>
-				</div>
-				<div
-					id="viewHomographyCalc"
-					class="page-view"
-					style="display: none"
-				>
-					<div class="main-content">
-						<h1>실측자료 이용 Homography 연산</h1>
-						<p>이 페이지는 준비 중입니다.</p>
-					</div>
-				</div>
-			</div>
-		</div>
+            <div id="pageContainer" class="page-container">
+                <div id="viewCoordInput" class="page-view current-view">
+                    <div class="main-content">
+                        <h1>이미지 좌표 및 Ground Truth 입력</h1>
+                        <p>
+                            <em id="imageSelectionPrompt"
+                                >좌측 상단의 '폴더 선택' 버튼으로 작업할 이미지
+                                폴더를 지정해주세요.</em
+                            >
+                        </p>
+                        <div id="imageContainer">
+                            <img
+                                id="uploadedImage"
+                                src="#"
+                                alt="선택된 이미지"
+                                style="display: none"
+                            />
+                            <canvas id="crosshairCanvas"></canvas>
+                            <div
+                                id="crosshairTooltip"
+                                style="display: none"
+                            ></div>
+                            <div
+                                id="crosshairActionMenu"
+                                class="action-menu"
+                                style="display: none"
+                            ></div>
+                        </div>
+                        <div id="outputJson" style="display: none">
+                            <h2>현재 작업중인/선택된 포인트 JSON</h2>
+                            <pre id="jsonResultCurrent">{}</pre>
+                        </div>
+                        <div id="definedPointsContainer" style="display: none">
+                            <h2>현재 이미지 주석 목록</h2>
+                            <ul id="definedPointsList"></ul>
+                        </div>
+                        <div id="globalJsonOutput">
+                            <div class="json-output-header">
+                                <h2>전체 JSON 데이터</h2>
+                                <div class="json-output-buttons">
+                                    <input
+                                        type="file"
+                                        id="importJsonFile"
+                                        accept=".json"
+                                        style="display: none"
+                                    />
+                                    <button id="importJsonBtn">Import</button>
+                                    <button id="exportJsonBtn">Export</button>
+                                    <button id="saveGlobalJsonBtn">Save</button>
+                                    <button id="resetGlobalJsonBtn">
+                                        Reset
+                                    </button>
+                                </div>
+                            </div>
+                            <pre id="jsonResultGlobal">{"data": []}</pre>
+                        </div>
+                    </div>
+                </div>
+                <div
+                    id="viewJsonConversion"
+                    class="page-view"
+                    style="display: none"
+                >
+                    <div class="main-content">
+                        <h1>캘리브레이션 결과 JSON 변환</h1>
+                        <div class="conversion-tool-container">
+                            <div class="conversion-input-area">
+                                <h2>입력 (Plain Text)</h2>
+                                <textarea
+                                    id="calibrationInputText"
+                                    rows="15"
+                                    placeholder="예시:&#10;fx = 1859.275745&#10;fy = 1859.275745&#10;cx = 1296.0&#10;cy = 960.0&#10;k1 = -0.374709&#10;k2 = 0.114566&#10;p1 = 0.001921&#10;p2 = 0.004061"
+                                ></textarea>
+                            </div>
+                            <div class="conversion-buttons-area">
+                                <button id="convertToJsonBtn">
+                                    &gt;&gt; 변환 &gt;&gt;
+                                </button>
+                                <button id="saveCalibrationResultBtn">
+                                    Save
+                                </button>
+                                <button id="resetCalibrationTextBtn">
+                                    초기화
+                                </button>
+                            </div>
+                            <div class="conversion-output-area">
+                                <h2>출력 (JSON)</h2>
+                                <textarea
+                                    id="calibrationOutputJson"
+                                    rows="15"
+                                    readonly
+                                    placeholder="변환 결과가 여기에 표시됩니다."
+                                ></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div
+                    id="viewHomographyCalc"
+                    class="page-view"
+                    style="display: none"
+                >
+                    <div class="main-content">
+                        <h1>실측자료 이용 Homography 연산</h1>
+                        <div id="homographyStatusSection">
+                            <h2>데이터 및 서버 상태 확인</h2>
+                            <p>전체 주석 데이터 (Global Annotations): <span id="statusGlobalAnnotations">확인 중...</span></p>
+                            <p>캘리브레이션 결과 (Calibration Result): <span id="statusCalibrationResult">확인 중...</span></p>
+                            <p>C++ API 서버 상태: <span id="statusCppApiServer">확인 중...</span></p>
+                            <button id="refreshHomographyStatusBtn">상태 새로고침</button>
+                        </div>
+                        <div id="homographyActionSection" style="margin-top: 20px;">
+                            <button id="requestHomographyBtn" disabled>Homography 연산 요청</button>
+                        </div>
+                        <div id="homographyResultSection" style="margin-top: 20px;">
+                            <h2>Homography 연산 결과</h2>
+                            <pre id="homographyResultText">결과 대기 중...</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-		<div id="groundTruthPopup" class="popup-dialog" style="display: none">
-			<div class="popup-content">
-				<span class="popup-close-btn" id="closePopupBtn">&times;</span>
-				<h3 id="popupTitle">Ground Truth 입력</h3>
-				<p>카메라 좌표: <span id="popupCameraCoords"></span></p>
-				<input type="hidden" id="editingPointId" />
-				<div>
-					<label for="popupGroundX">Ground X:</label
-					><input
-						type="number"
-						step="any"
-						id="popupGroundX"
-						placeholder="예: -1.234"
-					/>
-				</div>
-				<div>
-					<label for="popupGroundY">Ground Y:</label
-					><input
-						type="number"
-						step="any"
-						id="popupGroundY"
-						placeholder="예: -4.567"
-					/>
-				</div>
-				<div class="button-group">
-					<button id="popupSubmitBtn">저장</button
-					><button id="popupCancelBtn" type="button">취소</button>
-				</div>
-			</div>
-		</div>
-		<script src="/js/script.js"></script>
-	</body>
+        <div id="groundTruthPopup" class="popup-dialog" style="display: none">
+            <div class="popup-content">
+                <span class="popup-close-btn" id="closePopupBtn">&times;</span>
+                <h3 id="popupTitle">Ground Truth 입력</h3>
+                <p>카메라 좌표: <span id="popupCameraCoords"></span></p>
+                <input type="hidden" id="editingPointId" />
+                <div>
+                    <label for="popupGroundX">Ground X:</label
+                    ><input
+                        type="number"
+                        step="any"
+                        id="popupGroundX"
+                        placeholder="예: -1.234"
+                    />
+                </div>
+                <div>
+                    <label for="popupGroundY">Ground Y:</label
+                    ><input
+                        type="number"
+                        step="any"
+                        id="popupGroundY"
+                        placeholder="예: -4.567"
+                    />
+                </div>
+                <div class="button-group">
+                    <button id="popupSubmitBtn">저장</button
+                    ><button id="popupCancelBtn" type="button">취소</button>
+                </div>
+            </div>
+        </div>
+        <script src="/js/script.js"></script>
+    </body>
 </html>
