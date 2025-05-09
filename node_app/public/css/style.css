@@ -35,24 +35,24 @@ body {
     position: relative;
     display: flex;
     align-items: center;
-    height: 100%; /* 부모 높이만큼 채우도록 추가 */
+    height: 100%;
 }
 
 #hamburgerMenuBtn {
     background: none;
     border: none;
     color: white;
-    font-size: 1.5em; /* 아이콘 크기 약간 더 줄임 */
-    padding: 0 12px; /* 좌우 패딩 조정 */
-    height: 40px; /* 버튼 높이를 헤더보다 약간 작게 고정 */
-    width: auto; /* 너비는 내용 + 패딩으로 자동 조절 */
+    font-size: 1.5em;
+    padding: 0 12px;
+    height: 40px;
+    width: auto;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    line-height: 1; /* 아이콘 수직 정렬에 중요 */
+    line-height: 1;
     box-shadow: none;
-    align-self: center; /* .menu-section 내에서 수직 중앙 정렬 */
+    align-self: center;
 }
 
 #hamburgerMenuBtn:hover {
@@ -586,9 +586,8 @@ pre {
 
 .json-output-buttons button {
     margin-left: 8px;
-    padding: 6px 10px; /* 패딩 약간 줄임 */
+    padding: 6px 10px;
     font-size: 0.85em;
-    /* min-width: 80px; */ /* min-width 제거하여 내용에 따라 크기 조절 */
     text-align: center;
 }
 
@@ -829,4 +828,37 @@ pre {
 #homographyResultSection pre#homographyResultText {
     min-height: 100px;
     background-color: #fdfdfd;
+}
+
+/* 전체 캐시 초기화 플로팅 버튼 스타일 */
+.floating-action-button {
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    width: 60px;
+    height: 60px;
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    font-size: 28px;
+    /* line-height: 60px; */ /* Flexbox 사용 시 line-height는 불필요하거나 방해될 수 있음 */
+    text-align: center; /* 혹시 모를 상황 대비 */
+    cursor: pointer;
+    z-index: 1010;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    display: flex; /* Flexbox로 내부 컨텐츠 중앙 정렬 */
+    align-items: center; /* 수직 중앙 정렬 */
+    justify-content: center; /* 수평 중앙 정렬 */
+    padding: 0; /* 내부 아이콘 외 불필요한 패딩 제거 */
+}
+
+.floating-action-button:hover {
+    background-color: #c0392b;
+    transform: scale(1.05);
+}
+
+.floating-action-button:active {
+    transform: scale(0.95);
 }

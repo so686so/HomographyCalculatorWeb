@@ -85,6 +85,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const requestHomographyBtnElement = document.getElementById("requestHomographyBtn");
     const homographyResultTextElement = document.getElementById("homographyResultText");
 
+    // 플로팅 전체 캐시 초기화 버튼 요소
+    const floatingResetAllCacheBtnElement = document.getElementById("floatingResetAllCacheBtn");
+
 
     const ctx = crosshairCanvasElement.getContext("2d");
 
@@ -1162,37 +1165,106 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    resetGlobalJsonBtnElement.addEventListener("click", async () => {
-        if (
-            !confirm(
-                "모든 이미지의 주석과 완료 상태를 서버에서도 초기화합니까? 되돌릴 수 없습니다!"
+    // 기존 resetGlobalJsonBtnElement 이벤트 리스너 (특정 위치의 버튼)
+    if (resetGlobalJsonBtnElement) {
+        resetGlobalJsonBtnElement.addEventListener("click", async () => {
+            if (
+                !confirm(
+                    "모든 이미지의 주석과 완료 상태를 서버에서도 초기화합니까? 되돌릴 수 없습니다!"
+                )
             )
-        )
-            return;
-        try {
-            const res = await fetch("/api/all-data", { method: "DELETE" });
-            if (!res.ok) throw new Error(`초기화 실패(${res.status})`);
-            globalJsonData = { data: [] };
-            clientCalibrationResult = null;
-            jsonResultGlobalElement.textContent = JSON.stringify(
-                globalJsonData,
-                null,
-                2
-            );
-            if (calibrationOutputJsonElement) calibrationOutputJsonElement.value = "";
+                return;
+            try {
+                const res = await fetch("/api/all-data", { method: "DELETE" });
+                if (!res.ok) throw new Error(`초기화 실패(${res.status})`);
+                globalJsonData = { data: [] };
+                clientCalibrationResult = null;
+                jsonResultGlobalElement.textContent = JSON.stringify(
+                    globalJsonData,
+                    null,
+                    2
+                );
+                if (calibrationOutputJsonElement) calibrationOutputJsonElement.value = "";
 
-            if (currentImageIdentifier && currentSelectedFileObject)
-                await selectImage(currentSelectedFileObject);
-            else clearMainContentForNewFolder();
-            if (allFilesInFolder.length > 0) await renderImageList();
-            else imageListElement.innerHTML = "<li>폴더 선택 필요.</li>";
-            alert("모든 서버 및 클라이언트 데이터 초기화 완료.");
-            updateStatsHeader();
-        } catch (err) {
-            console.error("초기화 오류:", err);
-            alert(`오류: ${err.message}`);
-        }
-    });
+                if (currentImageIdentifier && currentSelectedFileObject)
+                    await selectImage(currentSelectedFileObject);
+                else clearMainContentForNewFolder();
+                if (allFilesInFolder.length > 0) await renderImageList();
+                else imageListElement.innerHTML = "<li>폴더 선택 필요.</li>";
+                alert("모든 서버 및 클라이언트 데이터 초기화 완료.");
+                updateStatsHeader();
+            } catch (err) {
+                console.error("초기화 오류:", err);
+                alert(`오류: ${err.message}`);
+            }
+        });
+    }
+
+    // 플로팅 전체 캐시 초기화 버튼 이벤트 리스너
+    if (floatingResetAllCacheBtnElement) {
+        floatingResetAllCacheBtnElement.addEventListener('click', async () => {
+            if (!confirm("정말로 모든 서버 캐시 데이터 (주석, 캘리브레이션 결과, 이미지별 작업 상태)를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다!")) {
+                return;
+            }
+            try {
+                const response = await fetch('/api/all-data', { method: 'DELETE' });
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: `서버 초기화 실패 (${response.status})` }));
+                    throw new Error(errorData.message);
+                }
+
+                // 클라이언트 측 데이터 초기화
+                globalJsonData = { data: [] };
+                clientCalibrationResult = null;
+                currentImageDefinedPoints = []; // 현재 이미지의 주석도 초기화
+                currentImageAnnotations = [];  // 현재 이미지의 캔버스 주석도 초기화
+                allCrosshairHotspots = [];     // 캔버스 핫스팟도 초기화
+
+                // UI 업데이트
+                if (jsonResultGlobalElement) jsonResultGlobalElement.textContent = JSON.stringify(globalJsonData, null, 2);
+                if (calibrationOutputJsonElement) calibrationOutputJsonElement.value = "";
+                if (jsonResultCurrentElement) jsonResultCurrentElement.textContent = "{}"; // 현재 포인트 JSON도 초기화
+                if (definedPointsListElement) definedPointsListElement.innerHTML = "<li>이 이미지에 정의된 주석이 없습니다.</li>"; // 주석 목록 UI 초기화
+                if (ctx) ctx.clearRect(0,0, crosshairCanvasElement.width, crosshairCanvasElement.height); // 캔버스 클리어
+
+                // 현재 이미지 관련 UI 초기화 (선택된 이미지가 있었다면)
+                if (currentImageIdentifier) {
+                    // resetUIForNewImageSelection(); // 이 함수는 현재 이미지 선택 시 호출되므로, 여기서는 더 포괄적인 초기화
+                    const listItem = document.querySelector(`#imageList li[data-image-name="${currentImageIdentifier}"]`);
+                    if (listItem) {
+                        listItem.classList.remove("completed", "active-selection");
+                    }
+                    // 만약 폴더 선택 UI를 유지하고 싶다면, clearMainContentForNewFolder() 대신 아래처럼 부분 초기화
+                    uploadedImageElement.style.display = "none";
+                    uploadedImageElement.src = "#";
+                    if (infoSelectedImageFileElement) infoSelectedImageFileElement.textContent = "N/A";
+                    if (infoResolutionElement) infoResolutionElement.textContent = "N/A";
+                    markCompleteBtnElement.style.display = "none";
+                } else {
+                     clearMainContentForNewFolder(); // 선택된 이미지가 없으면 전체 초기화
+                }
+
+                // 이미지 목록의 completed 클래스 모두 제거
+                document.querySelectorAll("#imageList li.completed").forEach(li => li.classList.remove("completed"));
+
+                if (document.getElementById('viewHomographyCalc').classList.contains('current-view')) {
+                    checkHomographyPrerequisites();
+                }
+
+                if (homographyResultTextElement) {
+                    homographyResultTextElement.textContent = "결과 대기 중...";
+                }
+
+                updateStatsHeader();
+                alert("모든 서버 및 클라이언트 캐시 데이터가 초기화되었습니다.");
+
+            } catch (error) {
+                console.error("전체 캐시 초기화 중 오류:", error);
+                alert(`오류 발생: ${error.message}`);
+            }
+        });
+    }
+
 
     exportJsonBtnElement.addEventListener("click", () => {
         if (
@@ -1531,21 +1603,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     throw new Error(result.message || `Homography 연산 실패 (${response.status})`);
                 }
 
-                // 결과 객체에서 homography_matrix를 요청하신 형식의 문자열로 변환
                 if (result.success && result.homography_matrix && Array.isArray(result.homography_matrix)) {
                     const matrix = result.homography_matrix;
                     let formattedMatrixString = "";
-                    // 3x3 행렬인지 확인
                     if (matrix.length === 3 && matrix.every(row => Array.isArray(row) && row.length === 3)) {
-                        // 각 행의 숫자들을 문자열로 변환하고 ", "로 연결
-                        // 그 다음 각 행 문자열을 "; "로 연결
-                        // 마지막으로 전체를 "["와 "]"로 감쌈
                         formattedMatrixString = "[" + matrix.map(row => row.join(", ")).join("; ") + "]";
                     } else {
-                        // 예상치 못한 형식의 행렬이면 원래대로 JSON 문자열화
                         formattedMatrixString = JSON.stringify(matrix);
                     }
-                    // 변환된 문자열을 result 객체의 homography_matrix 키 값으로 대체
                     result.homography_matrix = formattedMatrixString;
                 }
 
